@@ -1,0 +1,27 @@
+# Ficheros de configuración de VS Code
+.vscode/
+
+# Ficheros con información sensible (claves de API)
+config.hpp
+
+# Carpeta de compilación de CMake
+build/
+
+# Ficheros de caché de CMake y autogenerados
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Ejecutables compilados
+# En Windows suelen ser .exe
+*.exe
+# En Linux/macOS no suelen tener extensión
+transport_analyzer
+
+# Ficheros temporales de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Ficheros de log
+*.log
