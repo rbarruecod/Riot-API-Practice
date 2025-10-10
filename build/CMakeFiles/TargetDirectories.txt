@@ -1,0 +1,3 @@
+/home/ruben/Desktop/Proyectos_C/TransportDataAnalycer/build/CMakeFiles/transport_analyzer.dir
+/home/ruben/Desktop/Proyectos_C/TransportDataAnalycer/build/CMakeFiles/edit_cache.dir
+/home/ruben/Desktop/Proyectos_C/TransportDataAnalycer/build/CMakeFiles/rebuild_cache.dir
