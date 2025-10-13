@@ -25,6 +25,9 @@ public:
     // Devuelve el nombre del campeón a partir de su ID
     std::string getChampionNameById(long long championId);
 
+    // Devuelve los identificadores de las ultimas 20 partidas del invocador (puuid) introducido por parametro
+    std::vector <std::string> getSummonerMatchHistory(const std::string& puuid, const std::string &api_region);
+
 private:
     // Miembros privados de la clase
     std::string api_key_; // Guardamos la clave de API aquí

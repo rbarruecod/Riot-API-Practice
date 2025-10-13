@@ -160,12 +160,52 @@ void RiotAPI::loadChampionData() {
     }
     std::cout << "Datos de " << champion_data_.size() << " campeones cargados." << std::endl;
 }
-
-// --- NUEVA IMPLEMENTACIÓN ---
 std::string RiotAPI::getChampionNameById(long long championId) {
     auto it = champion_data_.find(championId);
     if (it != champion_data_.end()) {
         return it->second; // Devolvemos el nombre encontrado
     }
     return "Unknown Champion"; // Devolvemos un valor por defecto si no se encuentra
+}
+
+std::vector <std::string> RiotAPI::getSummonerMatchHistory(const std::string& puuid, const std::string &api_region){
+    std::vector <std::string> matchHistoryId;
+
+        std::string encodedApiRegion = cpr::util::urlEncode(api_region).c_str();
+
+    cpr::Url url = cpr::Url{
+        "https://" + encodedApiRegion + ".api.riotgames.com/lol/match/v5/matches/by-puuid/" + puuid + "/ids" };
+
+    //  2. ENVIO DE API MEDIANTE HEADER
+    cpr::Header headers = cpr::Header{
+        {"X-Riot-Token", api_key_} // Usamos el nombre de header que espera Riot
+    };
+
+    cpr::Response r = cpr::Get(url, headers);
+    if (r.status_code == 200)
+    {
+        try
+        {
+            json data = json::parse(r.text);
+
+            for (const auto &item : data)
+            {
+                matchHistoryId.push_back(item);
+            }
+        }
+        catch (const json::exception &e)
+        {
+            std::cerr << "Error al parsear el JSON: " << e.what() << std::endl;
+            return {}; // Devolvemos un vector vacío si el JSON es inválido
+        }
+    }
+    else
+    {
+        std::cerr << "Error en la peticion a la API. Codigo: " << r.status_code << std::endl;
+        std::cerr << "Respuesta: " << r.text << std::endl;
+        return {}; // Devolvemos un vector vacío si la petición falla
+    }
+
+    return matchHistoryId; // Devolvemos el vector con los Id's de las partidas
+
 }

@@ -16,15 +16,25 @@ int main() {
         std::string puuid = *puuid_optional;
         std::cout << "¡PUUID encontrado con exito!: " << puuid << std::endl;
 
+        std::cout << "Obteniendo el historial de partidas del incovador: " << puuid << std::endl;
+        std::vector <std::string> matchIdHistory = api.getSummonerMatchHistory(puuid, "europe");
+
+        for (auto id: matchIdHistory){
+            std::cout << "Registro recuperado: " << id << std::endl;
+        }
     } else {
         std::cerr << "No se pudo obtener el PUUID del jugador." << std::endl;
     }
 
+    /*
     std::vector<ChampMastery> maestria = api.getChampionMasteries(*puuid_optional, "euw1");
     for (ChampMastery aux: maestria){
         if (aux.championPoints > 100000){
             std::cout << "Tienes mas de 100k con:" << aux.championName << " Concretamente tienes: " << aux.championPoints << " puntos" << std::endl; 
         }    
     }
+    */
+
+
     return 0;
 }
