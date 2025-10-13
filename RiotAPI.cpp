@@ -167,7 +167,7 @@ std::string RiotAPI::getChampionNameById(long long championId) {
     }
     return "Unknown Champion"; // Devolvemos un valor por defecto si no se encuentra
 }
-
+// Devuelve los identificadores de las ultimas 20 partidas del invocador (puuid) introducido por parametro
 std::vector <std::string> RiotAPI::getSummonerMatchHistory(const std::string& puuid, const std::string &api_region){
     std::vector <std::string> matchHistoryId;
 
@@ -208,4 +208,53 @@ std::vector <std::string> RiotAPI::getSummonerMatchHistory(const std::string& pu
 
     return matchHistoryId; // Devolvemos el vector con los Id's de las partidas
 
+}
+// MÉTODO SOBRECARGADO CON FILTROS
+std::vector<std::string> RiotAPI::getSummonerMatchHistory(const std::string& puuid,const std::string &api_region, const MatchHistoryFilters& filters) {
+    std::vector<std::string> matchHistoryIds;
+
+    cpr::Url url = cpr::Url{
+        "https://" + api_region + ".api.riotgames.com/lol/match/v5/matches/by-puuid/" + puuid + "/ids"
+    };
+
+    cpr::Header headers = cpr::Header{
+        {"X-Riot-Token", api_key_}
+    };
+
+    // --- 2. Creamos los PARÁMETROS para los filtros ---
+    cpr::Parameters params = cpr::Parameters{};     // Empezamos con parámetros vacíos
+
+    // Añadimos los filtros solo si tienen un valor
+    if (filters.count) {
+        params.Add({"count", std::to_string(*filters.count)});
+    }
+    if (filters.start) {
+        params.Add({"start", std::to_string(*filters.start)});
+    }
+    if (filters.queue) {
+        params.Add({"queue", std::to_string(*filters.queue)});
+    }
+    if (filters.type) {
+        params.Add({"type", *filters.type});
+    }
+
+    cpr::Response r = cpr::Get(url, headers, params);
+
+    if (r.status_code == 200) {
+        try {
+            json data = json::parse(r.text);
+            for (const auto& item : data) {
+                matchHistoryIds.push_back(item);
+            }
+        } catch (const json::exception& e) {
+            std::cerr << "Error al parsear el JSON de historial: " << e.what() << std::endl;
+            return {};
+        }
+    } else {
+        std::cerr << "Error en la peticion de historial. Codigo: " << r.status_code << std::endl;
+        std::cerr << "Respuesta: " << r.text << std::endl;
+        return {};
+    }
+
+    return matchHistoryIds;
 }

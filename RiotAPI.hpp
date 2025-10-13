@@ -8,6 +8,15 @@
 
 #include <map> // <-- Incluir para std::map
 
+struct MatchHistoryFilters
+{
+    std::optional<int> queue;               /// Filtra por un tipo de cola específico (ej: 420 para Ranked Solo/Duo).
+    std::optional<std::string> type;        /// Filtra por el tipo de partida (ej: "ranked", "normal", "tourney").
+    std::optional<int> start;               /// Índice desde el que empezar a buscar (para paginación, 0 es la más reciente).
+    std::optional<int> count;               /// Número de IDs de partidas a devolver (0-100, por defecto 20).
+};
+
+
 class RiotAPI {
 public:
     // Constructor: Se llama al crear un objeto de la clase.
@@ -27,6 +36,8 @@ public:
 
     // Devuelve los identificadores de las ultimas 20 partidas del invocador (puuid) introducido por parametro
     std::vector <std::string> getSummonerMatchHistory(const std::string& puuid, const std::string &api_region);
+    // MÉTODO SOBRECARGADO CON FILTROS
+    std::vector<std::string> getSummonerMatchHistory(const std::string& puuid, const std::string &api_region, const MatchHistoryFilters& filters);
 
 private:
     // Miembros privados de la clase
