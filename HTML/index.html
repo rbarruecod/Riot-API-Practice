@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador de LoL</title>
+    </head>
+<body>
+
+    <h1>Analizador de Estadísticas de LoL</h1>
+
+    <form id="player-lookup-form">
+        <div>
+            <label for="gameName">Nombre de Invocador:</label>
+            <input type="text" id="gameName" placeholder="Plank Sparröw" required>
+        </div>
+        
+        <div>
+            <label for="tagLine">Tagline:</label>
+            <input type="text" id="tagLine" placeholder="EUW" required>
+        </div>
+
+        <div>
+            <label for="region">Región (API):</label>
+            <select id="region">
+                <option value="europe">Europe (EUW/EUNE)</option>
+                <option value="americas">Americas (NA/BR)</option>
+                <option value="asia">Asia (KR/JP)</option>
+            </select>
+        </div>
+        
+        <button type="submit" id="lookupButton">Buscar</button>
+    </form>
+
+    <hr>
+    
+    <h2>Resultados:</h2>
+    <pre id="results"></pre>
+
+    <script src="JS/app.js"></script>
+</body>
+</html>

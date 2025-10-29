@@ -6,12 +6,22 @@ project(transport_analyzer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Buscar y enlazar la librería cpr (forma correcta y explícita)
+# Buscar las librerías necesarias
 find_package(cpr CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED) 
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(Crow CONFIG REQUIRED)
 
-# Crear el ejecutable
-add_executable(transport_analyzer main.cpp RiotAPI.cpp)
+# Crear el ejecutable a partir de los ficheros fuente
+add_executable(transport_analyzer
+    main.cpp
+    RiotAPI.cpp
+)
 
-# Enlazar cpr con nuestro ejecutable (en minúsculas)
-target_link_libraries(transport_analyzer PRIVATE cpr::cpr)
+# Enlazar las librerías con nuestro ejecutable
+# El target Crow::Crow debería gestionar sus includes automáticamente
+target_link_libraries(transport_analyzer PRIVATE
+    cpr::cpr
+    nlohmann_json::nlohmann_json
+    Crow::Crow
+    asio::asio
+)

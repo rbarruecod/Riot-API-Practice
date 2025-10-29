@@ -1,6 +1,5 @@
-#include "RiotAPI.hpp" // Incluimos nuestra propia cabecera
+#include "RiotAPI.hpp" 
 
-// Incluimos las librerías que usaremos en la implementación
 #include <iostream>
 #include <cpr/cpr.h>
 #include <cpr/util.h>
@@ -20,15 +19,15 @@ RiotAPI::RiotAPI(const std::string &api_key) : api_key_(api_key)
 // Implementación del método que busca el PUUID y lo devuelve si lo encuentra
 // PRE: &gameName -> nombre de Invocador | &tagLine -> tag de invocador (EUW) | &api_region -> "europe"
 // POST: devuelve el PUUID asociado al invocador
-std::optional<std::string> RiotAPI::getPlayerPUUID(const std::string &gameName, const std::string &tagLine, const std::string &api_region)
+std::optional<std::string> RiotAPI::getPlayerPUUID(const std::string &gameName, const std::string &tagLine)
 {
 
     std::string encodedGameName = cpr::util::urlEncode(gameName).c_str();
     std::string encodedTagLine = cpr::util::urlEncode(tagLine).c_str();
-    std::string encodedApiRegion = cpr::util::urlEncode(api_region).c_str();
+    //std::string encodedApiRegion = cpr::util::urlEncode(api_region).c_str();
 
     cpr::Url url = cpr::Url{
-        "https://" + encodedApiRegion + ".api.riotgames.com/riot/account/v1/accounts/by-riot-id/" + encodedGameName + "/" + encodedTagLine};
+        "https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/" + encodedGameName + "/" + encodedTagLine};
 
     /*  1. ENVIO DE API POR URL - Desaconsejado
         cpr::Parameters params = cpr::Parameters{
@@ -150,7 +149,7 @@ void RiotAPI::loadChampionData() {
 
     json champions_json = json::parse(r_champions.text);
 
-    std::cout << "Cargando datos de campeones de la version " << latest_version << "..." << std::endl;
+    //std::cout << "Cargando datos de campeones de la version " << latest_version << "..." << std::endl;
 
     // Iteramos sobre el JSON para rellenar nuestro mapa
     for (const auto& champion : champions_json["data"].items()) {
@@ -158,7 +157,7 @@ void RiotAPI::loadChampionData() {
         std::string champion_name = champion.value()["name"];
         champion_data_[champion_key] = champion_name;
     }
-    std::cout << "Datos de " << champion_data_.size() << " campeones cargados." << std::endl;
+    //std::cout << "Datos de " << champion_data_.size() << " campeones cargados." << std::endl;
 }
 std::string RiotAPI::getChampionNameById(long long championId) {
     auto it = champion_data_.find(championId);
@@ -167,6 +166,7 @@ std::string RiotAPI::getChampionNameById(long long championId) {
     }
     return "Unknown Champion"; // Devolvemos un valor por defecto si no se encuentra
 }
+
 // Devuelve los identificadores de las ultimas 20 partidas del invocador (puuid) introducido por parametro
 std::vector <std::string> RiotAPI::getSummonerMatchHistory(const std::string& puuid, const std::string &api_region){
     std::vector <std::string> matchHistoryId;
@@ -257,4 +257,133 @@ std::vector<std::string> RiotAPI::getSummonerMatchHistory(const std::string& puu
     }
 
     return matchHistoryIds;
+}
+
+
+// --- METODOS DE PARTIDA ---
+std::optional<MatchDetails> RiotAPI::getMatchDetails(const std::string& matchId) {
+    // Match API uses regional servers (europe, americas, asia)
+    std::string api_region = "europe"; 
+
+    cpr::Url url = cpr::Url{
+        "https://" + api_region + ".api.riotgames.com/lol/match/v5/matches/" + matchId
+    };
+
+    cpr::Header headers = cpr::Header{
+        {"X-Riot-Token", api_key_}
+    };
+
+    cpr::Response r = cpr::Get(url, headers);
+
+    if (r.status_code == 200) {
+        try {
+            json data = json::parse(r.text);
+            MatchDetails details;
+            details.matchId = matchId;
+
+            // Navigate through the complex JSON structure
+            if (data.contains("info") && data["info"].contains("participants")) {
+                for (const auto& participantJson : data["info"]["participants"]) {
+                    Participant p;
+                    p.puuid = participantJson.value("puuid", "");
+                    p.championName = participantJson.value("championName", "Unknown");
+                    
+                    // Extract stats
+                    p.stats.totalDamageDealtToChampions = participantJson.value("totalDamageDealtToChampions", 0LL);
+                    // Add extraction for other stats here if needed
+
+                    details.participants.push_back(p);
+                }
+            } else {
+                 std::cerr << "Error: JSON response for match " << matchId << " missing 'info' or 'participants'." << std::endl;
+                return std::nullopt;
+            }
+            return details; // Return the populated struct
+
+        } catch (const json::exception& e) {
+            std::cerr << "Error parsing JSON for match " << matchId << ": " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    } else {
+        std::cerr << "Error fetching details for match " << matchId << ". Code: " << r.status_code << std::endl;
+        std::cerr << "Response: " << r.text << std::endl;
+        return std::nullopt;
+    }
+}
+
+std::optional<MatchSummary> RiotAPI::getMatchSummary(const std::string& matchId, const std::string& playerPuuid) {
+    std::string api_region = "europe"; // Match API uses regional servers
+
+    cpr::Url url = cpr::Url{
+        "https://" + api_region + ".api.riotgames.com/lol/match/v5/matches/" + matchId
+    };
+    cpr::Header headers = cpr::Header{{"X-Riot-Token", api_key_}};
+    cpr::Response r = cpr::Get(url, headers);
+
+    if (r.status_code == 200) {
+        try {
+            json data = json::parse(r.text);
+            MatchSummary summary;
+            summary.matchId = matchId;
+
+            if (data.contains("info")) {
+                const auto& info = data["info"];
+                summary.gameDuration = info.value("gameDuration", 0LL);
+                summary.gameEndTimestamp = info.value("gameEndTimestamp", 0LL);
+                summary.mapId = info.value ("mapId", -1);
+                std::cout << "EL ID DEL MAPA ES: " << summary.mapId << std::endl;
+                
+                if (info.contains("gameModeMutators")) {
+                    // .get<T>() convierte el array de JSON a un vector de C++
+                    summary.gameModeMutators = info["gameModeMutators"].get<std::vector<std::string>>();
+                }
+
+                // Find the player's champion name
+                if (info.contains("participants")) {
+                    for (const auto& participantJson : info["participants"]) {
+                        if (participantJson.value("puuid", "") == playerPuuid) {
+                            summary.playerChampionName = participantJson.value("championName", "Unknown");
+                            summary.playerSurrendered = participantJson.value("gameEndedInSurrender", false);
+                            summary.playerWin = participantJson.value("win", false);
+                            break; // Found the player
+                        }
+                    }
+                }
+                return summary; // Return the populated summary
+            } else {
+                 std::cerr << "Error: JSON response for match " << matchId << " missing 'info'." << std::endl;
+                 return std::nullopt;
+            }
+        } catch (const json::exception& e) {
+            std::cerr << "Error parsing JSON summary for match " << matchId << ": " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    } else {
+        std::cerr << "Error fetching summary for match " << matchId << ". Code: " << r.status_code << std::endl;
+        return std::nullopt; // Return empty optional on API error
+    }
+}
+
+
+
+
+
+
+
+//TODO: VOLCAR EL JSON POR COMPLETO DE PARTIDA (BORRAR)
+std::optional<std::string> RiotAPI::getRawMatchJson(const std::string& matchId) {
+    std::string api_region = "europe"; // Match API uses regional servers
+
+    cpr::Url url = cpr::Url{
+        "https://" + api_region + ".api.riotgames.com/lol/match/v5/matches/" + matchId
+    };
+    cpr::Header headers = cpr::Header{{"X-Riot-Token", api_key_}};
+    cpr::Response r = cpr::Get(url, headers);
+
+    if (r.status_code == 200) {
+        return r.text; // <-- Devuelve el JSON crudo como un string
+    } else {
+        std::cerr << "Error fetching raw JSON for match " << matchId << ". Code: " << r.status_code << std::endl;
+        return std::nullopt; // Devuelve vacío si falla
+    }
 }
