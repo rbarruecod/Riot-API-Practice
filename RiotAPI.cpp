@@ -323,7 +323,7 @@ std::optional<MatchSummary> RiotAPI::getMatchSummary(const std::string& matchId,
     if (r.status_code == 200) {
         try {
             json data = json::parse(r.text);
-            MatchSummary summary;
+            MatchSummary summary;           
             summary.matchId = matchId;
 
             if (data.contains("info")) {
@@ -331,7 +331,6 @@ std::optional<MatchSummary> RiotAPI::getMatchSummary(const std::string& matchId,
                 summary.gameDuration = info.value("gameDuration", 0LL);
                 summary.gameEndTimestamp = info.value("gameEndTimestamp", 0LL);
                 summary.mapId = info.value ("mapId", -1);
-                std::cout << "EL ID DEL MAPA ES: " << summary.mapId << std::endl;
                 
                 if (info.contains("gameModeMutators")) {
                     // .get<T>() convierte el array de JSON a un vector de C++
@@ -345,7 +344,20 @@ std::optional<MatchSummary> RiotAPI::getMatchSummary(const std::string& matchId,
                             summary.playerChampionName = participantJson.value("championName", "Unknown");
                             summary.playerSurrendered = participantJson.value("gameEndedInSurrender", false);
                             summary.playerWin = participantJson.value("win", false);
-                            break; // Found the player
+
+                            summary.pings.allInPings = participantJson.value("allInPings", -1);
+                            summary.pings.assistMePings = participantJson.value("assistMePings", -1);
+                            summary.pings.commandPings = participantJson.value("commandPings", -1);
+                            summary.pings.enemyMissingPings = participantJson.value("enemyMissingPings", -1);
+                            summary.pings.enemyVisionPings = participantJson.value("enemyVisionPings", -1);
+                            summary.pings.getBackPings = participantJson.value("getBackPings", -1);
+                            summary.pings.holdPings = participantJson.value("holdPings", -1);
+                            summary.pings.needVisionPings = participantJson.value("needVisionPings", -1);
+                            summary.pings.onMyWayPings = participantJson.value("onMyWayPings", -1);
+                            summary.pings.pushPings = participantJson.value("pushPings", -1);
+                            summary.pings.visionClearedPings = participantJson.value("visionClearedPings", -1);
+
+                            break; // Found the players
                         }
                     }
                 }

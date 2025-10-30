@@ -11,6 +11,7 @@
 #include "MatchData.hpp"
 #include "MatchSummary.hpp"
 
+
 // Helper function to convert Unix timestamp (milliseconds) to readable date
 std::string formatTimestamp(long long msTimestamp)
 {
@@ -22,6 +23,7 @@ std::string formatTimestamp(long long msTimestamp)
     std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
     return std::string(buffer);
 }
+
 
 int main()
 {
@@ -71,13 +73,19 @@ int main()
     int map_butchers_bridge_count = 0;
     int map_other_count = 0;
 
+    //Para albergar los pings
+    PlayerPings pings;
+    StatsAnalyzer pingAnalyzer;
+
     for (const std::string &matchId : match_ids)
     { // TODO: significado de &
         std::optional<MatchSummary> summary_opt = api.getMatchSummary(matchId, puuid);
 
         if (summary_opt)
         {
+            processedGames++;
             MatchSummary currentSummary = *summary_opt;
+            pingAnalyzer.accumulatePings(currentSummary);
 
             // Longest game
             if (currentSummary.gameDuration > longestGame.gameDuration)
@@ -133,6 +141,7 @@ int main()
         // TODO: Optional: Add delay for rate limiting if needed
     }
 
+
     // Display results
     std::cout << "\n--- Resultado del Análisis ---" << std::endl;
     std::cout << "Partidas jugadas: " << match_ids.size() << std::endl;
@@ -184,5 +193,8 @@ int main()
         std::cout << "  Otros mapas: " << map_other_count << std::endl;
     }
 
+    if (processedGames > 0) {
+        pingAnalyzer.printTotalPingStatistics();
+    }
     return 0;
 }

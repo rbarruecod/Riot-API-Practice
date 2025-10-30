@@ -7,6 +7,7 @@
 #include "ChampMastery.hpp"
 #include "MatchData.hpp"
 #include "MatchSummary.hpp"
+#include "StatsAnalyzer.hpp"
 
 #include <map>
 

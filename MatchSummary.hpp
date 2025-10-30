@@ -1,5 +1,20 @@
 #pragma once
 #include <string>
+#include <vector>
+
+struct PlayerPings {
+    int allInPings = 0;
+    int assistMePings = 0;
+    int commandPings = 0;
+    int enemyMissingPings = 0;
+    int enemyVisionPings = 0;
+    int holdPings = 0;
+    int getBackPings = 0;
+    int needVisionPings = 0;
+    int onMyWayPings = 0;
+    int pushPings = 0;
+    int visionClearedPings = 0;
+};
 
 struct MatchSummary {
     std::string matchId;
@@ -9,7 +24,6 @@ struct MatchSummary {
     std::string playerChampionName = "Unknown";
     bool playerSurrendered = false;
     bool playerWin = false;
-
-    // Guardará la lista de mutadores del mapa, ej para el cruce de Koeshin: ["mapskin_map12_bloom"]
-    std::vector<std::string> gameModeMutators;
+    std::vector<std::string> gameModeMutators; // Guardará la lista de mutadores del mapa, ej para el cruce de Koeshin: ["mapskin_map12_bloom"]
+    PlayerPings pings;
 };

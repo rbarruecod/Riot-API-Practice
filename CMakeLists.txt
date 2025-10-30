@@ -15,6 +15,7 @@ find_package(Crow CONFIG REQUIRED)
 add_executable(transport_analyzer
     main.cpp
     RiotAPI.cpp
+    StatsAnalyzer.cpp
 )
 
 # Enlazar las librerías con nuestro ejecutable
