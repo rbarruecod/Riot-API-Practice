@@ -3,17 +3,42 @@
 #include "MatchSummary.hpp"
 #include <vector>
 
+// To store pentakills
+struct PentaKillEvent {
+    std::string championName;
+    std::string matchId;
+};
+
+// --- Multi-Kills resume  ---
+struct MaxKillsMatch {
+    std::string matchId;
+    std::string championName;
+    int kills = 0; // El número de kills en esa partida
+};
+
 class StatsAnalyzer {
 public:
     // El constructor sigue igual
     explicit StatsAnalyzer();
 
-    // Acumula los pings de una partida en la variable 'totals'
-    void accumulatePings(const MatchSummary& match);
+    // --- MÉTODO ACTUALIZADO ---
+    // Acumula todas las estadísticas (pings y kills) de una partida
+    void analyzeMatch(const MatchSummary& match);
     
-    // Imprime el total acumulado. 'const' significa que este método no modifica la clase.
-    void printTotalPingStatistics() const;
+    // --- MÉTODO ACTUALIZADO ---
+    // Imprime el informe completo de todas las estadísticas
+    void printFinalReport() const;
 
 private:
-    PlayerPings totals; // El acumulador
+    PlayerPings pingTotals_; 
+
+    // --- kill stats ---
+    std::vector<PentaKillEvent> pentakills_;
+    int totalQuadraKills_ = 0;
+    int totalTripleKills_ = 0;
+    int totalDoubleKills_ = 0;
+    int largestKillingSpree_ = 0;
+    MaxKillsMatch maxKillsMatch_;
+    MaxKillsMatch maxDeathsMatch_; 
+    std::vector<std::string> zeroDeathMatches_;
 };

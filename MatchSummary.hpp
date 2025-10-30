@@ -26,4 +26,13 @@ struct MatchSummary {
     bool playerWin = false;
     std::vector<std::string> gameModeMutators; // Guardará la lista de mutadores del mapa, ej para el cruce de Koeshin: ["mapskin_map12_bloom"]
     PlayerPings pings;
+
+    //Multi-kills fields
+    int kills = 0;
+    int doubleKills = 0;
+    int tripleKills = 0;
+    int quadraKills = 0;
+    int pentaKills = 0;
+    int largestKillingSpree = 0;
+    int deaths = 0; 
 };

@@ -75,7 +75,7 @@ int main()
 
     //Para albergar los pings
     PlayerPings pings;
-    StatsAnalyzer pingAnalyzer;
+    StatsAnalyzer analyzer;
 
     for (const std::string &matchId : match_ids)
     { // TODO: significado de &
@@ -85,7 +85,8 @@ int main()
         {
             processedGames++;
             MatchSummary currentSummary = *summary_opt;
-            pingAnalyzer.accumulatePings(currentSummary);
+            
+            analyzer.analyzeMatch(currentSummary);
 
             // Longest game
             if (currentSummary.gameDuration > longestGame.gameDuration)
@@ -192,9 +193,9 @@ int main()
     {
         std::cout << "  Otros mapas: " << map_other_count << std::endl;
     }
-
     if (processedGames > 0) {
-        pingAnalyzer.printTotalPingStatistics();
+        // --- Llamada al método de informe actualizado ---
+        analyzer.printFinalReport();
     }
     return 0;
 }
