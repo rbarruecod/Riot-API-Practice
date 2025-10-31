@@ -4,6 +4,9 @@
 #include <optional>
 #include <limits> // Para obtener el valor mínimo de long long
 #include <ctime>  // For converting timestamp to date
+#include <crow.h>                  
+#include <crow/middlewares/cors.h> 
+#include <cpr/util.h> // Para urlDecode
 
 #include "config.hpp"
 #include "RiotAPI.hpp"
@@ -27,175 +30,125 @@ std::string formatTimestamp(long long msTimestamp)
 
 int main()
 {
-    // 1. Crear instancia de la API
+    // 1. Crear instancia de la API (carga el Data Dragon)
     RiotAPI api(RIOT_API_KEY);
 
-    // 2. Obtener PUUID
-    std::optional<std::string> puuid_optional = api.getPlayerPUUID("CösmicSeaBass", "4224");
+    // 2. Crear la aplicación del servidor Crow
+    crow::App<crow::CORSHandler> app;
 
-    if (!puuid_optional)
-    {
-        std::cerr << "Error: No se pudo obtener el PUUID. Saliendo." << std::endl;
-        return 1;
-    }
+    // 3. Configurar CORS para permitir peticiones de WordPress
+    auto& cors = app.get_middleware<crow::CORSHandler>();
+    cors.global().methods("GET"_method);
+    // Para más seguridad, podrías restringir el origen a tu dominio de WordPress:
+    // .origin("https://tu-sitio-wordpress.com"); 
+
+    std::cout << "Servidor C++ iniciando..." << std::endl;
+
+    // --- RUTA PRINCIPAL DE LA API ---
+    // Escuchará en: /api/recap/aram/{gameName}/{tagLine}
+    CROW_ROUTE(app, "/api/recap/aram/<string>/<string>")
+    ([&api](const std::string& encodedGameName, const std::string& encodedTagLine) {
+        
+        // Decodificar los parámetros de la URL
+        std::string gameName = cpr::util::urlDecode(encodedGameName).c_str();
+        std::string tagLine = cpr::util::urlDecode(encodedTagLine).c_str();
+        
+        std::cout << "Peticion de RECAP recibida para: " << gameName << "#" << tagLine << std::endl;
+
+        // --- 1. Obtener PUUID ---
+        std::optional<std::string> puuid_opt = api.getPlayerPUUID(gameName, tagLine);
+        if (!puuid_opt) {
+            std::cerr << "  Error: Jugador no encontrado." << std::endl;
+            return crow::response(404, nlohmann::json{{"error", "Jugador no encontrado"}}.dump());
+        }
+        std::string puuid = *puuid_opt;
+        std::cout << "  > PUUID encontrado: " << puuid << std::endl;
+
+        // --- 2. Obtener IDs de partidas ARAM ---
+        MatchHistoryFilters filters;
+        filters.count = 20; // Analizamos las últimas 20 partidas (puedes ajustar esto)
+        filters.queue = 450; // ARAM
+        std::vector<std::string> match_ids = api.getSummonerMatchHistory(puuid, "europe",filters);
+
+        if (match_ids.empty()) {
+            std::cerr << "  Error: No se encontraron partidas de ARAM." << std::endl;
+            return crow::response(404, nlohmann::json{{"error", "No se encontraron partidas de ARAM"}}.dump());
+        }
+        std::cout << "  > Encontrados " << match_ids.size() << " IDs de partidas." << std::endl;
+
+        // --- 3. Analizar cada partida ---
+        StatsAnalyzer analyzer;
+        int processedGames = 0;
+        std::cout << "  > Iniciando análisis de partidas..." << std::endl;
+        
+        for (const std::string& matchId : match_ids) {
+            std::optional<MatchSummary> summary = api.getMatchSummary(matchId, puuid);
+            if (summary) {
+                analyzer.analyzeMatch(*summary); // Acumular datos
+                processedGames++;
+            }
+            // NOTA: Si procesas muchas partidas, aquí deberías añadir un delay
+            // para no exceder el Rate Limit de la API de Riot.
+            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        std::cout << "  > Análisis completado. " << processedGames << " partidas procesadas." << std::endl;
+
+        // --- 4. Generar el informe JSON y devolverlo ---
+        nlohmann::json report = analyzer.generateReportJson();
+        report["totalGamesProcessed"] = processedGames;
+        report["player"]["gameName"] = gameName;
+        report["player"]["tagLine"] = tagLine;
+
+        return crow::response(200, report.dump());
+    });
+
+    // Iniciar el servidor en el puerto 18080
+    std::cout << "Servidor C++ de Stats iniciado. Escuchando en http://localhost:18080" << std::endl;
+    app.port(18080).multithreaded().run();
+    
+    return 0;
+
+    /*
+    std::optional<std::string> puuid_optional = api.getPlayerPUUID("Plank Sparröw", "EUW");
+    if (!puuid_optional) {  return 1; }
     std::string puuid = *puuid_optional;
 
-    // 3. Obtener IDs de partidas ARAM
-    MatchHistoryFilters aram_filters;
-    // TODO: Ajustar estos parametros para que recupere todos los games de la season
+    MatchHistoryFilters filters;
+    filters.count = 40; 
+    filters.queue = 450;
+    std::vector<std::string> match_ids = api.getSummonerMatchHistory(puuid, "europe",filters);
 
-    aram_filters.count = 50;
-    aram_filters.queue = 450; // ID de ARAM
-    std::vector<std::string> match_ids = api.getSummonerMatchHistory(puuid, "europe", aram_filters);
+    if (match_ids.empty()) {  return 1; }
 
-    if (match_ids.empty())
-    {
-        std::cerr << "No se encontraron partidas de ARAM recientes." << std::endl;
-        return 1;
-    }
-    std::cout << "Se encontraron " << match_ids.size() << " IDs de partidas." << std::endl;
-
-    // Variables to track longest and shortest games
-    MatchSummary longestGame;
-    MatchSummary shortestGame;
-    longestGame.gameDuration = 0;                                      // Start with 0 duration
-    shortestGame.gameDuration = std::numeric_limits<long long>::max(); // Start with max duration
-
-    // Contadores de estadísticas de la partida
-    int surrenderCount = 0;
-    int winCount = 0;
-    int lossCount = 0;
+    // --- LÓGICA DE ANÁLISIS LIMPIA ---
+    StatsAnalyzer analyzer; // 1. Creamos el analizador
     int processedGames = 0;
 
-    // Contadores de mapa
-    int map_howling_abyss_count = 0;
-    int map_koshin_crossing_count = 0;
-    int map_butchers_bridge_count = 0;
-    int map_other_count = 0;
-
-    //Para albergar los pings
-    PlayerPings pings;
-    StatsAnalyzer analyzer;
-
-    for (const std::string &matchId : match_ids)
-    { // TODO: significado de &
-        std::optional<MatchSummary> summary_opt = api.getMatchSummary(matchId, puuid);
-
-        if (summary_opt)
-        {
+    for (const std::string& matchId : match_ids) {
+        std::optional<MatchSummary> summary = api.getMatchSummary(matchId, puuid);
+        if (summary) {
+            analyzer.analyzeMatch(*summary); // 2. Acumulamos datos
             processedGames++;
-            MatchSummary currentSummary = *summary_opt;
-            
-            analyzer.analyzeMatch(currentSummary);
-
-            // Longest game
-            if (currentSummary.gameDuration > longestGame.gameDuration)
-            {
-                longestGame = currentSummary;
-            }
-
-            // Shortest game
-            if (currentSummary.gameDuration < shortestGame.gameDuration && !currentSummary.playerSurrendered)
-            {
-                shortestGame = currentSummary;
-            }
-
-            if (currentSummary.playerSurrendered && !currentSummary.playerWin)
-            {
-                surrenderCount++;
-            }
-            if (currentSummary.playerWin)
-            {
-                winCount++;
-            }
-            else
-            {
-                lossCount++;
-            }
-
-            // --- Logica de Conteo de Mapas --- (Koeshin y Carnicero como Mutators de Howling Abyss)
-            if (currentSummary.mapId == 12)
-            {
-                bool isVariant = false;
-                for (const std::string &mutator : currentSummary.gameModeMutators)
-                {
-                    if (mutator == "mapskin_map12_bloom")
-                    {
-                        map_koshin_crossing_count++;
-                        isVariant = true;
-                        break;
-                    }
-                    else if (mutator == "mapskin_ha_bilgewater")
-                    {
-                        map_butchers_bridge_count++;
-                        isVariant = true;
-                        break;
-                    }
-                }
-                if (!isVariant)
-                {
-                    // Si no tiene mutador conocido, es el Abismo estándar
-                    map_howling_abyss_count++;
-                }
-            }
         }
-        // TODO: Optional: Add delay for rate limiting if needed
     }
 
-
-    // Display results
-    std::cout << "\n--- Resultado del Análisis ---" << std::endl;
-    std::cout << "Partidas jugadas: " << match_ids.size() << std::endl;
-    std::cout << "W/R: " << ((winCount * 100.000) / match_ids.size()) << "% --- VICTORIAS: " << winCount << " | DERROTAS: " << lossCount << std::endl;
-    if (longestGame.gameDuration > 0)
-    {
-        std::cout << "Partida más larga:" << std::endl;
-        std::cout << "  Duración: " << longestGame.gameDuration / 60 << "m " << longestGame.gameDuration % 60 << "s" << std::endl;
-        std::cout << "  Fecha: " << formatTimestamp(longestGame.gameEndTimestamp) << std::endl;
-        std::cout << "  Campeón: " << longestGame.playerChampionName << std::endl;
-        std::cout << "  Resultado: " << (longestGame.playerWin ? " [Victoria]" : " [Derrota]") << std::endl;
-    }
-    else
-    {
-        std::cout << "No se encontraron datos de partidas largas." << std::endl;
-    }
-
-    if (shortestGame.gameDuration != std::numeric_limits<long long>::max())
-    {
-        std::cout << "\nPartida más corta:" << std::endl;
-        std::cout << "  Duración: " << shortestGame.gameDuration / 60 << "m " << shortestGame.gameDuration % 60 << "s" << std::endl;
-        std::cout << "  Fecha: " << formatTimestamp(shortestGame.gameEndTimestamp) << std::endl;
-        std::cout << "  Campeón: " << shortestGame.playerChampionName << std::endl;
-        std::cout << "  Resultado: " << (shortestGame.playerWin ? " [Victoria]" : " [Derrota]") << std::endl;
-    }
-    else
-    {
-        std::cout << "\nNo se encontraron datos de partidas cortas válidas." << std::endl;
-    }
-    if (surrenderCount != 0)
-    {
-        std::cout << "\nPartidas perdidas por rendicion: " << surrenderCount << std::endl;
-        std::cout << "Porcentaje de rendicion: " << (surrenderCount * 100.00) / match_ids.size() << " %" << std::endl;
-    }
-    else
-    {
-        std::cout << "\nEres inquebrantable, de tus " << lossCount << " derrotas, NINGUNA ha sido por FF!!" << std::endl;
-    }
-
-    // --- MOSTRAR RESULTADOS DE MAPAS ---
-    std::cout << "\nDistribución de Mapas:" << std::endl;
-    std::cout << "  Abismo de los Lamentos: " << map_howling_abyss_count << " (" << ((map_howling_abyss_count *100.00) / match_ids.size()) << "%)"<< std::endl;
-
-    std::cout << "  Cruce de Koeshin: " << map_koshin_crossing_count << " (" << ((map_koshin_crossing_count *100.00) / match_ids.size()) << "%)"<< std::endl;
-
-    std::cout << "  Puente del Carnicero: " << map_butchers_bridge_count << " (" << ((map_butchers_bridge_count *100.00) / match_ids.size()) << "%)"<< std::endl;
-    if (map_other_count > 0)
-    {
-        std::cout << "  Otros mapas: " << map_other_count << std::endl;
-    }
+    // --- INFORME FINAL ---
+    std::cout << "\n--- Resultado del Análisis de " << processedGames << " partidas ---" << std::endl;
     if (processedGames > 0) {
-        // --- Llamada al método de informe actualizado ---
-        analyzer.printFinalReport();
+        analyzer.printFinalReport(); // 3. Imprimimos el informe
+
+        // --- 2. VERIFICACIÓN DEL JSON  ---
+        // Obtenemos el objeto JSON
+        nlohmann::json reportJson = analyzer.generateReportJson();
+        
+        
+        //  Método .dump() convierte el objeto JSON de C++ en un std::string. 
+        //  Al pasarle el número 4, formatea el string con una indentación de 4 espacios.
+        
+        std::cout << "\n--- JSON CRUDO PARA EL FRONTEND ---" << std::endl;
+        std::cout << reportJson.dump(4) << std::endl;
     }
-    return 0;
+
+    return 0;*/
 }

@@ -2,6 +2,8 @@
 
 #include "MatchSummary.hpp"
 #include <vector>
+#include <string>
+#include <nlohmann/json.hpp>
 
 // To store pentakills
 struct PentaKillEvent {
@@ -21,13 +23,15 @@ public:
     // El constructor sigue igual
     explicit StatsAnalyzer();
 
-    // --- MÉTODO ACTUALIZADO ---
     // Acumula todas las estadísticas (pings y kills) de una partida
     void analyzeMatch(const MatchSummary& match);
     
-    // --- MÉTODO ACTUALIZADO ---
     // Imprime el informe completo de todas las estadísticas
     void printFinalReport() const;
+
+    // --- API DEVELOPMENT ---
+    // Genera un objeto JSON con todas las estadísticas calculadas
+    nlohmann::json generateReportJson() const;
 
 private:
     PlayerPings pingTotals_; 
@@ -41,4 +45,17 @@ private:
     MaxKillsMatch maxKillsMatch_;
     MaxKillsMatch maxDeathsMatch_; 
     std::vector<std::string> zeroDeathMatches_;
+
+    // --- Variables de Partida ---
+    MatchSummary longestGame_;
+    MatchSummary shortestGame_;
+    int surrenderCount_ = 0;
+    int winCount_ = 0;
+    int lossCount_ = 0;
+
+    // --- Variables de Mapa ---
+    int map_howling_abyss_count_ = 0;
+    int map_koshin_crossing_count_ = 0;
+    int map_butchers_bridge_count_ = 0;
+    int map_other_count_ = 0;
 };
